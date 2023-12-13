@@ -1,5 +1,6 @@
 from django.utils import timezone
 import random
+import logging
 
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,6 +16,10 @@ from rest_framework.permissions import IsAuthenticated
 from .utils import send_otp_email, send_password_email, success_false_response, success_true_response
 
 
+# Configure logging
+# logger = logging.getLogger("api.views")
+
+
 # Create your views here.
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -25,13 +30,16 @@ def get_tokens_for_user(user):
 
 
 class UserRegistrationView(APIView):
-    def post(self, request, format=None):
-        serializer = UserRegistrationSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            user = serializer.save()
-            token = get_tokens_for_user(user)
-            return Response({'token': token, 'msg': 'Registration Successful'}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        def post(self, request, format=None):
+            try:
+                serializer = UserRegistrationSerializer(data=request.data)
+                if serializer.is_valid(raise_exception=True):
+                    user = serializer.save()
+                    token = get_tokens_for_user(user)
+                    # logger.info('Data listed successfully')
+                return Response(success_true_response({'token': token, 'message': 'User Register Successfully'}, data=serializer.data))
+            except Exception as e:
+                return Response(success_false_response(message='Failed to Registered', data={'error': str(e)}))
 
 
 class UserLoginView(APIView):
@@ -44,49 +52,59 @@ class UserLoginView(APIView):
         user = authenticate(email=email, password=password)
         if user is not None:
             token = get_tokens_for_user(user)
-            return Response({'token': token, 'msg': 'Login Success'}, status=status.HTTP_200_OK)
-        else:
-            return Response({'errors': {'non_field_errors': ['Email or Password is not Valid']}},
-                            status=status.HTTP_404_NOT_FOUND)
+            return Response(success_true_response({'token': token, 'message':'User Login successfully'}, data=serializer.data))
+        elif Exception:
+            return Response(success_false_response({'message':"Email and Password doesn't match"}))
 
 
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, format=None):
-        serializer = UserProfileSerializer(request.user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            serializer = UserProfileSerializer(request.user)
+            return Response(success_true_response({'message':'Data Retrieving successfully'}, data=serializer.data))
+        except Exception as e:
+            return Response(success_false_response(message='Failed to retrieve data', data={'error': str(e)}))
 
 
 class UserChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, format=None):
-        serializer = UserChangePasswordSerializer(data=request.data, context={'user': request.user})
-        serializer.is_valid(raise_exception=True)
-        return Response({'msg': 'Password Changed Successfully'}, status=status.HTTP_200_OK)
-
+        try:
+            serializer = UserChangePasswordSerializer(data=request.data, context={'user': request.user})
+            serializer.is_valid(raise_exception=True)
+            return Response(success_true_response({'message':'Password changed successfully'}, data=serializer.data))
+        except Exception as e:
+            return Response(success_false_response(message="Password and Confirm Password doesn't match", data={'error':str(e)}))
 
 class UserUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def put(self, request, format=None):
-        serializer = UserUpdateSerializer(instance=request.user, data=request.data, partial=True)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            return Response({'msg': 'User updated successfully'}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            serializer = UserUpdateSerializer(instance=request.user, data=request.data, partial=True)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+                return Response(success_true_response({'message':'User Updated Successfully'}, data=serializer.data))
+        except Exception as e:
+            return Response(success_false_response(message='Failed to update User', data={'error': str(e)}),
+                        status=400)
 
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = LogoutSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        access_token = serializer.validated_data.get('access_token')
-        return Response({'detail': 'Logout successful'}, status=status.HTTP_200_OK)
-
+        try:
+            serializer = LogoutSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            access_token = serializer.validated_data.get('access_token')
+            return Response(success_true_response({'message':'User Logout successfully'}))
+        except Exception as e:
+            return Response(success_false_response(message='Failed to logout', data={'error': str(e)}),
+                            status=400)
 
 from datetime import timedelta
 

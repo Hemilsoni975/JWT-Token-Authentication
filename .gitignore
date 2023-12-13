@@ -104,7 +104,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-.env/
+
 
 # mkdocs documentation
 /site
@@ -142,3 +142,8 @@ GitHub.sublime-settings
 *.sql
 *.sqlite
 api/migrations/
+
+# .gitignore
+
+# Ignore .env files
+.env

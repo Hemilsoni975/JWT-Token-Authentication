@@ -107,7 +107,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'otp']
+        fields = ['email',]
         extra_kwargs = {
             'password': {'write_only': True}
         }

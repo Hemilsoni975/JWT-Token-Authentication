@@ -134,31 +134,12 @@ class LoginWithOTP(APIView):
 
         return Response({'message': 'OTP has been sent to your email.'}, status=status.HTTP_200_OK)
 
-"""
-class GetOTP(APIView):
+
+class ResetPasswordWithOTP(APIView):
     def post(self, request):
         email = request.data.get('email', '')
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return Response({'Failure': 'User with this email does not exist.'}, status=status.HTTP_404_NOT_FOUND)
-
-        otp = random.randint(100000, 999999)
-        user.otp = otp
-        user.otp_created_at = timezone.now()  # Save the timestamp when OTP is generated
-        user.save()
-
-        send_otp_email(email, otp)
-        # send_otp_phone(phone_number, otp)
-
-        return Response({'Success': 'OTP has been sent to your email.'}, status=status.HTTP_200_OK)
-
-
-class ForgotPasswordOTP(APIView):
-    def post(self, request):
-        email = request.data.get('email', '')
+        new_password = request.data.get('new_password', '')
         otp = request.data.get('otp', '')
-        password = request.data.get('password', '')
 
         try:
             user = User.objects.get(email=email)
@@ -166,14 +147,14 @@ class ForgotPasswordOTP(APIView):
             return Response({'Failure': 'User with this email does not exist.'}, status=status.HTTP_404_NOT_FOUND)
 
         if user.otp == otp:
-            user.password = password
-            user.save()
+            # Check if OTP is within the 30-second window
+            time_difference = timezone.now() - user.otp_created_at
+            if time_difference < timedelta(seconds=30):
+                user.set_password(new_password)
+                user.otp = None  # Reset the OTP field after successful password reset
+                user.save()
+                return Response({'message': 'Password reset successful.'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'Failure': 'OTP has expired.'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'Failure': 'Invalid OTP'}, status=status.HTTP_404_NOT_FOUND)
-
-        send_password_email(email, password)
-        # send_otp_phone(phone_number, otp)
-
-        return Response({'Success': 'New Password Set Successfully. Check Mail For You Password. '},
-                        status=status.HTTP_200_OK)
-"""
+            return Response({'Failure': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
